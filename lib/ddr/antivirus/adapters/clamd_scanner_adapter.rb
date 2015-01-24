@@ -15,7 +15,7 @@ module Ddr
         end
 
         def clamdscan(path)
-          `clamdscan --no-summary #{path}`.strip
+          Open3.capture3("clamdscan --no-summary #{path}")
         end
 
       end
@@ -26,25 +26,33 @@ module Ddr
       class ClamdScanResult < ScanResult
         
         def virus_found
-          if m = /: ([^\s]+) FOUND$/.match(raw)
+          if has_virus?
+            m = /: ([^\s]+) FOUND$/.match(raw[0])
             m[1]
           end
         end
 
         def has_virus?
-          raw =~ / FOUND$/
+          raw[2].exitstatus == 1
         end
 
         def error?
-          raw =~ / ERROR$/
+          raw[2].exitstatus == 2
+        end
+
+        def error
+          if error?
+            m = /^ERROR: (.+)$/.match(raw[1])
+            m[1]
+          end
         end
 
         def ok?
-          raw =~ / OK$/
+          raw[2].exitstatus == 0
         end
 
         def to_s
-          "#{raw} (#{version})"
+          "#{raw[0]} (#{version})"
         end
 
         def default_version
